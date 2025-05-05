@@ -20,9 +20,9 @@
   library(dplyr)
   library(Seurat)
   library(tidyverse)
-#读取CTC_log_tpm_expression_matrix文件 <- 肝癌患者循环肿瘤细胞TPm数据
+#读取DGUOK/DGUOK_Mutant
   Mutant <- Read10X(data.dir = "~/DGUOK/DGUOK_Mutant/raw_cell_gene_matrix/")
-#读取CTC_log_tpm_expression_matrix文件 <- 肝癌患者循环肿瘤细胞TPm数据
+#读取DGUOK_Control
   Control <- Read10X(data.dir = "~/DGUOK/DGUOK_Control/raw_cell_gene_matrix/")
 #创建Seurat对象
   seurat_Mutant <- CreateSeuratObject(counts = Mutant,        # counts：原始UMI计数矩阵（行是基因，列是细胞）   
