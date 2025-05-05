@@ -853,7 +853,7 @@
   # 提取元数据
   metadata <- melanocyte_subset@meta.data
   
-  # 小提琴图（带统计检验）
+  # 小提琴图
   p_violin <- ggviolin(metadata, 
                        x = "orig.ident", y = "Module_Score_Z", 
                        fill = "orig.ident",
@@ -863,7 +863,7 @@
     stat_compare_means(method = "t.test", label.y = max(metadata$Module_Score_Z) * 1.1)
   print(p_violin)
   
-  # 密度图（带中位线）
+  # 密度图
   median_values <- metadata %>%
     group_by(orig.ident) %>%
     summarise(median_z = median(Module_Score_Z, na.rm = TRUE))
