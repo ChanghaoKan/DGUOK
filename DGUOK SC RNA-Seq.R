@@ -559,86 +559,6 @@
   
   
   
-####使用AUCell评分####
-#加载必要的包
-  library(AUCell)
-  library(Seurat)
-  library(stringr)
-  library(cowplot)
-  library(ggplot2)
-  library(homologene)  # 用于基因映射
-#提取表达矩阵
-  exprMatrix <- GetAssayData(seurat_combined_harmony, 
-                             layer = "counts", 
-                             assay = "RNA")
-#设置基因集（选择一个CSV文件）
-  geneSet_human <- read.csv("ROS Top50.csv")  # 或 "Stemness Top50.csv"
-  human_genes <- geneSet_human$Gene.Symbol  # 提取人的基因符号列
-#使用homologene将人基因映射到小鼠基因
-  mapped_genes <- homologene(human_genes, inTax = 9606, outTax = 10090)  # 9606: human, 10090: mouse
-#提取小鼠基因符号并去重
-  geneSet_mouse <- unique(mapped_genes$`10090`)  # 提取小鼠基因列
-#检查哪些基因在表达矩阵中存在
-  present_genes <- geneSet_mouse[geneSet_mouse %in% rownames(exprMatrix)]
-  missing_genes <- setdiff(geneSet_mouse, rownames(exprMatrix))
-  if (length(missing_genes) > 0) {
-    warning(paste("以下小鼠基因在表达矩阵中未找到：",
-                  paste(missing_genes,
-                        collapse = ", ")))
-  }
-#使用存在的基因进行AUCell分析
-  geneSet <- present_genes
-#基因排序
-  cells_rankings <- AUCell_buildRankings(exprMatrix)
-#计算AUC值
-  cells_AUC <- AUCell_calcAUC(list(geneSet = geneSet), 
-                              cells_rankings,
-                              aucMaxRank = nrow(cells_rankings)*0.2)
-#设置基因集活性阈值
-  cells_assignment <- AUCell_exploreThresholds(cells_AUC, 
-                                               plotHist = TRUE, 
-                                               assign = TRUE)
-#获取分配的细胞
-  new_cells <- cells_assignment$geneSet$assignment
-#将结果保存在Seurat对象中
-  seurat_combined_harmony$is_list <- ifelse(colnames(seurat_combined_harmony) %in% new_cells, "list", "non_list")
-#统计每种细胞类型中基因集激活和沉默的细胞数
-  tab <- table(seurat_combined_harmony$is_list, 
-               seurat_combined_harmony$new_cluster_idents)
-#绘制UMAP图
-  p1 <- DimPlot(object = seurat_combined_harmony,
-                group.by = "is_list", 
-                label = TRUE)
-  p2 <- DimPlot(object = seurat_combined_harmony, 
-                group.by = "new_cluster_idents",
-                label = TRUE)
-  p <- plot_grid(p1, p2, ncol = 2)  # 并排显示两个图
-  print(p)
-#提取元数据
-  meta_data <- seurat_combined_harmony@meta.data
-#筛选 Melanocyte 细胞
-  melanocyte_data <- meta_data[meta_data$new_cluster_idents == "Melanocyte", ]
-#按样本和 is_list 分组统计
-  tab_melanocyte <- table(melanocyte_data$orig.ident, 
-                          melanocyte_data$is_list)
-#打印结果
-  print(tab_melanocyte)
-#将表格转换为数据框
-  tab_melanocyte_df <- as.data.frame(tab_melanocyte)
-  colnames(tab_melanocyte_df) <- c("Sample", "Status", "Count")
-#绘制柱状图
-  ggplot(tab_melanocyte_df, aes(x = Sample, y = Count, fill = Status)) +
-    geom_bar(stat = "identity", 
-             position = "dodge") +
-    labs(title = "Melanocyte Cells with ROS Gene Set Activation",
-         x = "Sample",
-         y = "Number of Cells",
-         fill = "ROS Activation") +
-    theme_minimal()
-
-
-
-
 #### 提取黑色素细胞子集 ####
 #加载已注释的Seurat对象
   seurat_combined_harmony <- readRDS("seurat_combined_comment.rds")
@@ -716,7 +636,8 @@
                                 group.by.vars = "orig.ident",
                                 reduction.save = "harmony",
                                 max.iter.harmony = 10)
-  melanocyte_subset <- RunUMAP(melanocyte_subset, reduction = "harmony", dims = 1:ndim,reduction.name = "umap")
+#为排除harmony聚类可能掩盖误差，再次使用pca进行二次运算，结果类似，故选择harmony
+  melanocyte_subset <- RunUMAP(melanocyte_subset, reduction = "harmony", dims = 1:ndim,reduction.name = "umap") 
 #保存Seurat对象
   saveRDS(melanocyte_subset,"melanocyte_subset_harmony.rds")  
   
@@ -819,22 +740,20 @@
   
   
 ####进行基因集评分####
-  # 加载必要的包（仅一次）
+#加载必要的包
   library(Seurat)
   library(homologene)
   library(ggplot2)
   library(ggpubr)
   library(dplyr)
   
-  # 加载黑色素细胞子集
+#加载黑色素细胞子集
   melanocyte_subset <- readRDS("melanocyte_subset_harmony.rds")
-  
-  # 提取log归一化后的表达矩阵
+#提取log归一化后的表达矩阵
   expr_matrix <- GetAssayData(melanocyte_subset, assay = "RNA", layer = "data")
   expr_matrix <- as.matrix(expr_matrix)
   dim(expr_matrix)
-  
-  # 设置基因集
+#设置基因集
   geneSet_human <- read.csv("ROS Top50.csv")
   human_genes <- geneSet_human$Gene.Symbol
   mapped_genes <- homologene(human_genes, inTax = 9606, outTax = 10090)
@@ -844,18 +763,15 @@
   if (length(missing_genes) > 0) {
     warning(paste("以下小鼠基因在表达矩阵中未找到：", paste(missing_genes, collapse = ", ")))
   }
-  
-  # 计算基因集评分
+#计算基因集评分
   gene_sets <- list(MyGeneSet = present_genes)
   melanocyte_subset <- AddModuleScore(object = melanocyte_subset, features = gene_sets, ctrl = 100, name = "GeneSet_")
   score_col <- grep("GeneSet_", colnames(melanocyte_subset@meta.data), value = TRUE)
   colnames(melanocyte_subset@meta.data)[colnames(melanocyte_subset@meta.data) == score_col] <- "Score"
   melanocyte_subset$Module_Score_Z <- scale(melanocyte_subset$Score)[,1]
-  
-  # 提取元数据
+ #提取元数据
   metadata <- melanocyte_subset@meta.data
-  
-  # 小提琴图
+#小提琴图
   p_violin <- ggviolin(metadata, 
                        x = "orig.ident", y = "Module_Score_Z", 
                        fill = "orig.ident",
@@ -864,8 +780,7 @@
                        xlab = "", ylab = "Gene Set Score") +
     stat_compare_means(method = "t.test", label.y = max(metadata$Module_Score_Z) * 1.1)
   print(p_violin)
-  
-  # 密度图
+#密度图
   median_values <- metadata %>%
     group_by(orig.ident) %>%
     summarise(median_z = median(Module_Score_Z, na.rm = TRUE))
