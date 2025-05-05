@@ -385,6 +385,8 @@
     )
 #合并数据
   tb_combined <- bind_rows(tb, tb_overall)
+#保存上调的marker基因
+  write.csv(tb_combined,"tb_combined.csv")
   library(RColorBrewer)
   colours <- brewer.pal(n = n_celltypes, name = "Set3")  # 使用 Set3 调色板
 #甜甜圈图
