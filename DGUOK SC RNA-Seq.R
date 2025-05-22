@@ -81,7 +81,7 @@
                                       nFeature_RNA > min_nFeature & 
                                       percent.mt < max_percent_mt)
 #动态质控函数
-#祖传代码别动，谁动谁死（^_^）
+#祖传代码别动（^_^）
   dynamic_filter <- function(seurat_obj) {
     meta_data <- seurat_obj@meta.data %>%
       rownames_to_column(var = "cell_id") %>%
